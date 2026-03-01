@@ -36,6 +36,15 @@ func TestReadHookStatus_Expired(t *testing.T) {
 	assert.False(t, hs.IsValid())
 }
 
+func TestReadHookStatus_MalformedJSON(t *testing.T) {
+	dir := t.TempDir()
+	statusFile := filepath.Join(dir, "bad-session")
+	require.NoError(t, os.WriteFile(statusFile, []byte("{bad json"), 0644))
+
+	_, err := tmux.ReadHookStatus(dir, "bad-session")
+	assert.Error(t, err)
+}
+
 func TestReadHookStatus_NotFound(t *testing.T) {
 	dir := t.TempDir()
 	_, err := tmux.ReadHookStatus(dir, "nonexistent")

@@ -86,9 +86,19 @@ func (s *Store) RenameGroup(id int64, name string) error {
 }
 
 func (s *Store) DeleteGroup(id int64) error {
-	_, _ = s.db.Exec("UPDATE session_meta SET group_id = 0 WHERE group_id = ?", id)
-	_, err := s.db.Exec("DELETE FROM groups WHERE id = ?", id)
-	return err
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec("UPDATE session_meta SET group_id = 0 WHERE group_id = ?", id); err != nil {
+		return fmt.Errorf("ungroup sessions: %w", err)
+	}
+	if _, err := tx.Exec("DELETE FROM groups WHERE id = ?", id); err != nil {
+		return fmt.Errorf("delete group: %w", err)
+	}
+	return tx.Commit()
 }
 
 func (s *Store) SetSessionGroup(sessionName string, groupID int64, sortOrder int) error {

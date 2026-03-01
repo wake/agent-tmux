@@ -42,6 +42,11 @@ func TestLoadFromTOML_PartialOverride(t *testing.T) {
 	assert.Equal(t, 2, cfg.PollIntervalSec)
 }
 
+func TestLoadFromTOML_InvalidInput(t *testing.T) {
+	_, err := config.LoadFromString("invalid {{{")
+	assert.Error(t, err)
+}
+
 func TestExpandPath(t *testing.T) {
 	home, _ := os.UserHomeDir()
 

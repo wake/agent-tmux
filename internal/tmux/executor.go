@@ -16,6 +16,6 @@ func NewRealExecutor() *RealExecutor {
 // Execute 執行 tmux 指令並回傳輸出結果。
 func (e *RealExecutor) Execute(args ...string) (string, error) {
 	cmd := exec.Command("tmux", args...)
-	out, err := cmd.CombinedOutput()
+	out, err := cmd.Output()
 	return strings.TrimSpace(string(out)), err
 }
