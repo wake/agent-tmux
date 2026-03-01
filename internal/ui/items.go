@@ -1,0 +1,54 @@
+package ui
+
+import (
+	"github.com/wake/tmux-session-menu/internal/store"
+	"github.com/wake/tmux-session-menu/internal/tmux"
+)
+
+// ItemType 區分列表項目的種類。
+type ItemType int
+
+const (
+	ItemSession ItemType = iota
+	ItemGroup
+)
+
+// ListItem 代表列表中的一個項目（session 或群組標頭）。
+type ListItem struct {
+	Type    ItemType
+	Session tmux.Session
+	Group   store.Group
+}
+
+// FlattenItems 將群組與 session 扁平化為一維列表。
+// 排列順序：未分組 session → 各群組（標頭 + 子 session）。
+// 已收合的群組不會展開子 session。
+func FlattenItems(groups []store.Group, sessions []tmux.Session) []ListItem {
+	var items []ListItem
+
+	grouped := make(map[string][]tmux.Session)
+	var ungrouped []tmux.Session
+
+	for _, s := range sessions {
+		if s.GroupName == "" {
+			ungrouped = append(ungrouped, s)
+		} else {
+			grouped[s.GroupName] = append(grouped[s.GroupName], s)
+		}
+	}
+
+	for _, s := range ungrouped {
+		items = append(items, ListItem{Type: ItemSession, Session: s})
+	}
+
+	for _, g := range groups {
+		items = append(items, ListItem{Type: ItemGroup, Group: g})
+		if !g.Collapsed {
+			for _, s := range grouped[g.Name] {
+				items = append(items, ListItem{Type: ItemSession, Session: s})
+			}
+		}
+	}
+
+	return items
+}
