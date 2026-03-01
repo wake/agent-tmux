@@ -2,8 +2,11 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/wake/tmux-session-menu/internal/tmux"
 )
 
 // Model 是 Bubble Tea 的主要模型。
@@ -57,13 +60,91 @@ func (m Model) View() string {
 	if m.quitting {
 		return ""
 	}
-	header := headerStyle.Render("tmux session menu") +
-		dimStyle.Render("  (↑↓/jk 選擇, Enter 確認, q 離開)")
-	help := fmt.Sprintf("\n  %s  %s  %s",
+
+	var b strings.Builder
+
+	// Header
+	b.WriteString(headerStyle.Render("tmux session menu"))
+	b.WriteString(dimStyle.Render("  (↑↓/jk 選擇, Enter 確認, q 離開)"))
+	b.WriteString("\n")
+
+	// Items list
+	if len(m.items) > 0 {
+		b.WriteString("\n")
+		for i, item := range m.items {
+			cursor := "  "
+			if i == m.cursor {
+				cursor = selectedStyle.Render("► ")
+			}
+
+			switch item.Type {
+			case ItemGroup:
+				collapse := "▼"
+				if item.Group.Collapsed {
+					collapse = "▶"
+				}
+				b.WriteString(fmt.Sprintf("%s%s %s\n",
+					cursor,
+					selectedStyle.Render(collapse),
+					selectedStyle.Render(item.Group.Name)))
+
+			case ItemSession:
+				icon := item.Session.StatusIcon()
+				styledIcon := statusStyleFor(item.Session.Status).Render(icon)
+
+				relTime := ""
+				if !item.Session.Activity.IsZero() {
+					relTime = "  " + dimStyle.Render(item.Session.RelativeTime())
+				}
+
+				aiModel := ""
+				if item.Session.AIModel != "" {
+					aiModel = "  " + dimStyle.Render(item.Session.AIModel)
+				}
+
+				name := item.Session.Name
+				if i == m.cursor {
+					name = selectedStyle.Render(name)
+				}
+
+				b.WriteString(fmt.Sprintf("%s   %s  %s%s%s\n",
+					cursor, name, styledIcon, relTime, aiModel))
+			}
+		}
+	}
+
+	// Help bar
+	b.WriteString(fmt.Sprintf("\n  %s  %s  %s\n",
 		dimStyle.Render("[n] 新建"),
 		dimStyle.Render("[g] 新群組"),
-		dimStyle.Render("[q] 離開"))
-	return header + "\n" + help + "\n"
+		dimStyle.Render("[q] 離開")))
+
+	// Preview section
+	if len(m.items) > 0 && m.cursor >= 0 && m.cursor < len(m.items) {
+		selected := m.items[m.cursor]
+		if selected.Type == ItemSession && selected.Session.AISummary != "" {
+			b.WriteString("\n")
+			b.WriteString(previewBorderStyle.Render(
+				fmt.Sprintf("Preview: %s", selected.Session.AISummary)))
+			b.WriteString("\n")
+		}
+	}
+
+	return b.String()
+}
+
+// statusStyleFor 回傳對應狀態的 lipgloss 樣式。
+func statusStyleFor(status tmux.SessionStatus) lipgloss.Style {
+	switch status {
+	case tmux.StatusRunning:
+		return statusRunningStyle
+	case tmux.StatusWaiting:
+		return statusWaitingStyle
+	case tmux.StatusError:
+		return statusErrorStyle
+	default:
+		return statusIdleStyle
+	}
 }
 
 // SetItems 設定列表項目（主要用於測試）。
