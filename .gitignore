@@ -1,0 +1,17 @@
+# Binary
+/tsm
+/cmd/tsm/tsm
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+
+# Test
+coverage.out
+
+# Build
+dist/
