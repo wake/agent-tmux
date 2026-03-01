@@ -26,3 +26,36 @@ func TestModel_Quit(t *testing.T) {
 	_ = updated
 	assert.NotNil(t, cmd)
 }
+
+func TestModel_Navigation(t *testing.T) {
+	m := ui.NewModel()
+	m.SetItems([]ui.ListItem{
+		{Type: ui.ItemSession},
+		{Type: ui.ItemSession},
+		{Type: ui.ItemSession},
+	})
+
+	assert.Equal(t, 0, m.Cursor())
+
+	m, _ = applyKey(m, "j")
+	assert.Equal(t, 1, m.Cursor())
+
+	m, _ = applyKey(m, "k")
+	assert.Equal(t, 0, m.Cursor())
+
+	// Can't go past top
+	m, _ = applyKey(m, "k")
+	assert.Equal(t, 0, m.Cursor())
+
+	// Can't go past bottom
+	m, _ = applyKey(m, "j")
+	m, _ = applyKey(m, "j")
+	m, _ = applyKey(m, "j")
+	assert.Equal(t, 2, m.Cursor())
+}
+
+func applyKey(m ui.Model, key string) (ui.Model, tea.Cmd) {
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(key)}
+	updated, cmd := m.Update(msg)
+	return updated.(ui.Model), cmd
+}
