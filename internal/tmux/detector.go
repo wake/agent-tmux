@@ -1,6 +1,9 @@
 package tmux
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // StripANSI 移除字串中的 ANSI 逸出序列，使用 O(n) 單次掃描，不使用正規表達式。
 func StripANSI(s string) string {
@@ -93,4 +96,50 @@ func hasPromptChar(s string) bool {
 	}
 	lastLine := strings.TrimSpace(lines[len(lines)-1])
 	return lastLine == ">" || lastLine == "❯"
+}
+
+// TitleStatus 表示從 pane title 偵測到的狀態。
+type TitleStatus int
+
+const (
+	TitleUnknown TitleStatus = iota // 無法判定
+	TitleRunning                    // Braille 旋轉指標 → AI 正在工作
+	TitleDone                       // 勾號 → 完成
+)
+
+// DetectTitleStatus 根據 pane title 偵測狀態（第二層偵測）。
+func DetectTitleStatus(title string) TitleStatus {
+	for _, r := range title {
+		if r >= 0x2800 && r <= 0x28FF {
+			return TitleRunning
+		}
+		if r == '✓' || r == '✔' {
+			return TitleDone
+		}
+	}
+	return TitleUnknown
+}
+
+// PaneTitleFormat 是傳給 tmux list-panes -F 的格式字串，用於取得 pane title。
+const PaneTitleFormat = "#{session_name}:#{pane_title}"
+
+// ParseListPaneTitles 解析 tmux list-panes 的輸出，回傳 session name → pane title 的對應。
+func ParseListPaneTitles(output string) (map[string]string, error) {
+	result := make(map[string]string)
+	output = strings.TrimSpace(output)
+	if output == "" {
+		return result, nil
+	}
+	for _, line := range strings.Split(output, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		idx := strings.Index(line, ":")
+		if idx < 0 {
+			return nil, fmt.Errorf("unexpected format: %q", line)
+		}
+		result[line[:idx]] = line[idx+1:]
+	}
+	return result, nil
 }
